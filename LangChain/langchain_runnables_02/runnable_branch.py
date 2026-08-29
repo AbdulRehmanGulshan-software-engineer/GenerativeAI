@@ -1,0 +1,36 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+from langchain_core.runnables import RunnableSequence,RunnablePassthrough,RunnableParallel,RunnableLambda, RunnableBranch
+
+load_dotenv()
+
+prompt1 = PromptTemplate(
+    template='Write a detailed report on {topic}',
+    input_variables=['topic']
+)
+
+prompt2 = PromptTemplate(
+    template='Summarize the following text \n {text}',
+    input_variables=['text']
+)
+
+model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite")
+
+parser = StrOutputParser()
+
+# sequential chain
+# report_gen_chain = RunnableSequence(prompt1, model, parser)
+report_gen_chain = prompt1 | model | parser
+
+# branch chain
+branch_chain = RunnableBranch(
+    (lambda x: len(x.split())>300, RunnableSequence(prompt2, model, parser)),
+    RunnablePassthrough()
+)
+
+# final chain
+final_chain = RunnableSequence(report_gen_chain,branch_chain)
+
+print(final_chain.invoke({'topic':'Russia vs Ukraine'}))
